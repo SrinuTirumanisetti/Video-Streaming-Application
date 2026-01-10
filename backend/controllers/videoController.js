@@ -34,12 +34,7 @@ exports.uploadVideo = async (req, res) => {
 exports.getVideos = async (req, res) => {
   try {
     const { status, search } = req.query;
-    let query = { owner: req.user._id }; // Multi-tenant: user isolation
-
-    // Admin can see all? Requirements say "Admin Role: Full system access"
-    if (req.user.role === 'admin') {
-      delete query.owner; // Admin sees all
-    }
+    let query = {}; // Allow all users to see all videos
 
     if (status) {
       query.status = status;
@@ -63,10 +58,8 @@ exports.getVideoById = async (req, res) => {
       return res.status(404).json({ message: 'Video not found' });
     }
 
-    // Access control
-    if (req.user.role !== 'admin' && video.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
+    // Allow read access to everyone for now, since requirements say viewers should see videos
+    // Edit/Delete protection would be separate (not implemented in this GET route)
 
     res.json(video);
   } catch (error) {
@@ -80,14 +73,6 @@ exports.streamVideo = async (req, res) => {
     if (!video) {
       return res.status(404).json({ message: 'Video not found' });
     }
-
-    // Access control check? Streaming might need to be public or token based.
-    // For this assignment, we'll assume if they have the ID and are logged in (via middleware) it's fine.
-    // Or we can be strict:
-    // if (req.user.role !== 'admin' && video.owner.toString() !== req.user._id.toString()) { ... }
-    // However, standard HTML5 video player request might not send headers easily without custom logic.
-    // For simplicity, we might skip auth on stream OR assume token is passed in query param.
-    // Let's assume auth middleware is applied to this route.
 
     const videoPath = path.resolve(video.path);
     if (!fs.existsSync(videoPath)) {
