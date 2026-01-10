@@ -38,7 +38,7 @@ const Register = () => {
             Create an account
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Join VideoPulse to upload and stream content
+            Join SafeStream to upload and stream content
           </p>
         </div>
         
