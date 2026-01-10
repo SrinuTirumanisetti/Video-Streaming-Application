@@ -1,11 +1,13 @@
 const Video = require('../models/Video');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static');
 const path = require('path');
 const fs = require('fs');
 
-// Set FFmpeg path
+// Set FFmpeg and FFprobe paths
 ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath.path);
 
 const analyzeVideo = async (videoId, io) => {
   try {
