@@ -4,13 +4,14 @@ import { AuthContext } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
 import VideoPlayer from '../components/VideoPlayer';
-import { Play, Upload, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Play, Upload, AlertTriangle, CheckCircle, Clock, X, Film, FileVideo, Calendar, HardDrive } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [videos, setVideos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -42,10 +43,14 @@ const Dashboard = () => {
 
   const fetchVideos = async () => {
     try {
+      setLoading(true);
       const { data } = await api.get('/videos');
       setVideos(data);
     } catch (error) {
       console.error('Error fetching videos:', error);
+      toast.error('Failed to load videos');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,7 +61,7 @@ const Dashboard = () => {
 
     const formData = new FormData();
     formData.append('video', file);
-    formData.append('title', file.name); // Simple title for now
+    formData.append('title', file.name);
 
     setUploading(true);
     try {
@@ -73,20 +78,25 @@ const Dashboard = () => {
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusInfo = (status) => {
     switch (status) {
-      case 'safe': return <CheckCircle className="text-green-500" size={20} />;
-      case 'flagged': return <AlertTriangle className="text-red-500" size={20} />;
-      default: return <Clock className="text-yellow-500 animate-spin" size={20} />;
+      case 'safe': return { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200' };
+      case 'flagged': return { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200' };
+      default: return { icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', animate: true };
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-bold">Video Dashboard</h2>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">Manage and view your video content</p>
+        </div>
+        
         {(user.role === 'editor' || user.role === 'admin') && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center">
             <input
               type="file"
               ref={fileInputRef}
@@ -97,67 +107,170 @@ const Dashboard = () => {
             <button
               onClick={() => fileInputRef.current.click()}
               disabled={uploading}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
+              className={`flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all ${uploading ? 'opacity-75 cursor-not-allowed' : ''}`}
             >
-              <Upload className="mr-2" size={20} />
-              {uploading ? 'Uploading...' : 'Upload Video'}
+              {uploading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-5 w-5" />
+                  Upload New Video
+                </>
+              )}
             </button>
           </div>
         )}
       </div>
 
-      {selectedVideo && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-4 rounded-lg w-full max-w-4xl relative">
-            <button 
-              onClick={() => setSelectedVideo(null)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-black text-xl font-bold"
-            >
-              ✕
-            </button>
-            <h3 className="text-xl font-bold mb-4">{selectedVideo.title}</h3>
-            <VideoPlayer videoId={selectedVideo._id} token={user.token} />
-          </div>
+      {/* Video Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden h-72 animate-pulse">
+              <div className="h-40 bg-gray-200"></div>
+              <div className="p-4 space-y-3">
+                <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {videos.map((video) => {
+            const statusInfo = getStatusInfo(video.status);
+            const StatusIcon = statusInfo.icon;
+            
+            return (
+              <div key={video._id} className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-300">
+                {/* Thumbnail Area */}
+                <div className="h-48 bg-gray-900 relative overflow-hidden">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FileVideo className="h-16 w-16 text-gray-700 opacity-50" />
+                  </div>
+                  
+                  {/* Overlay */}
+                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    {video.status === 'safe' ? (
+                      <button
+                        onClick={() => setSelectedVideo(video)}
+                        className="transform scale-90 group-hover:scale-100 transition-transform duration-300 bg-white bg-opacity-20 backdrop-blur-sm p-4 rounded-full hover:bg-opacity-30"
+                      >
+                        <Play className="h-8 w-8 text-white fill-current" />
+                      </button>
+                    ) : (
+                      <div className="bg-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+                        <StatusIcon className={`h-5 w-5 ${statusInfo.color} ${statusInfo.animate ? 'animate-spin' : ''}`} />
+                        <span className="font-medium text-gray-900 capitalize">{video.status}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Duration/Status Badge */}
+                  <div className="absolute bottom-2 right-2">
+                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bg} ${statusInfo.color} border ${statusInfo.border}`}>
+                      {video.status === 'processing' && <StatusIcon className="mr-1 h-3 w-3 animate-spin" />}
+                      {video.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="p-5">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-1 flex-1 pr-2" title={video.title}>
+                      {video.title}
+                    </h3>
+                  </div>
+                  
+                  <div className="flex items-center text-sm text-gray-500 space-x-4 mt-4">
+                    <div className="flex items-center">
+                      <HardDrive className="h-4 w-4 mr-1.5" />
+                      {(video.size / (1024 * 1024)).toFixed(2)} MB
+                    </div>
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1.5" />
+                      {new Date(video.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          
+          {videos.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
+              <div className="bg-white p-4 rounded-full shadow-sm mb-4">
+                <Film className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No videos yet</h3>
+              <p className="mt-1 text-sm text-gray-500 text-center max-w-sm">
+                Upload your first video to get started. It will be processed and available for streaming shortly.
+              </p>
+              {(user.role === 'editor' || user.role === 'admin') && (
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="mt-6 btn-primary"
+                >
+                  Upload Video
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {videos.map((video) => (
-          <div key={video._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="h-48 bg-gray-200 flex items-center justify-center relative group">
-              {video.status === 'safe' ? (
+      {/* Video Player Modal */}
+      {selectedVideo && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background overlay */}
+            <div 
+              className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" 
+              aria-hidden="true"
+              onClick={() => setSelectedVideo(null)}
+            ></div>
+
+            {/* Modal panel */}
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-black rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="absolute top-0 right-0 pt-4 pr-4 z-10">
                 <button
-                  onClick={() => setSelectedVideo(video)}
-                  className="p-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  type="button"
+                  className="bg-black bg-opacity-50 rounded-full p-2 text-gray-400 hover:text-white focus:outline-none"
+                  onClick={() => setSelectedVideo(null)}
                 >
-                  <Play className="text-blue-600 ml-1" />
+                  <span className="sr-only">Close</span>
+                  <X className="h-6 w-6" />
                 </button>
-              ) : (
-                <div className="text-gray-500 font-medium capitalize flex items-center">
-                  {getStatusIcon(video.status)}
-                  <span className="ml-2">{video.status}</span>
-                </div>
-              )}
-            </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <h3 className="font-semibold text-lg truncate pr-2">{video.title}</h3>
-                <span title={`Status: ${video.status}`}>
-                  {getStatusIcon(video.status)}
-                </span>
               </div>
-              <p className="text-gray-500 text-sm mt-1">
-                {(video.size / (1024 * 1024)).toFixed(2)} MB • {new Date(video.createdAt).toLocaleDateString()}
-              </p>
+              
+              <div className="bg-black">
+                <div className="aspect-w-16 aspect-h-9">
+                  <VideoPlayer videoId={selectedVideo._id} token={user.token} />
+                </div>
+              </div>
+              
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                  {selectedVideo.title}
+                </h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    Uploaded on {new Date(selectedVideo.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        ))}
-        {videos.length === 0 && (
-          <div className="col-span-full text-center py-12 text-gray-500">
-            No videos found. Upload one to get started!
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
