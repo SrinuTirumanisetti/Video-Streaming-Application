@@ -4,16 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const { uploadVideo, getVideos, getVideoById, streamVideo } = require('../controllers/videoController');
 const { protect, authorize } = require('../middleware/authMiddleware');
-
-// Multer Config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
+const { storage } = require('../config/cloudinary');
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('video/')) {
@@ -23,14 +14,27 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 });
 
 // Routes
-router.post('/upload', protect, authorize('editor', 'admin'), upload.single('video'), uploadVideo);
+router.post('/upload',
+  protect,
+  authorize('editor', 'admin'),
+  (req, res, next) => {
+    console.log('Incoming upload request from user:', req.user?._id);
+    next();
+  },
+  upload.single('video'),
+  (req, res, next) => {
+    console.log('Multer finished processing');
+    next();
+  },
+  uploadVideo
+);
 router.get('/', protect, getVideos);
 router.get('/:id', protect, getVideoById);
 
@@ -40,10 +44,10 @@ router.get('/:id', protect, getVideoById);
 // For the sake of the assignment, I'll allow streaming to be protected but we might need a workaround on frontend.
 // Alternative: Pass token in query string `?token=...` and middleware checks that too.
 router.get('/stream/:id', async (req, res, next) => {
-    if (req.query.token) {
-        req.headers.authorization = `Bearer ${req.query.token}`;
-    }
-    next();
+  if (req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
 }, protect, streamVideo);
 
 module.exports = router;

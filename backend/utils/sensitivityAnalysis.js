@@ -19,8 +19,9 @@ const analyzeVideo = async (videoId, io) => {
         return;
     }
 
-    const videoPath = path.resolve(video.path);
-    const framesDir = path.join(path.dirname(videoPath), 'frames', videoId.toString());
+    // Use Cloudinary URL if available, otherwise fall back to local path
+    const videoPath = video.cloudinaryUrl || path.resolve(video.path);
+    const framesDir = path.join(__dirname, '..', 'temp', 'frames', videoId.toString());
 
     // Ensure frames directory exists
     if (!fs.existsSync(framesDir)) {

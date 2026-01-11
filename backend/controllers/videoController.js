@@ -4,30 +4,50 @@ const fs = require('fs');
 const path = require('path');
 
 exports.uploadVideo = async (req, res) => {
+  console.log('Starting uploadVideo controller...');
+  console.log('req.file:', req.file);
+  console.log('req.body:', req.body);
+  console.log('req.user:', req.user);
+
   try {
     if (!req.file) {
+      console.log('No file found in request');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const { title, description } = req.body;
-    
+
+    console.log('Finalizing video creation with data:', {
+      title: title || req.file.originalname,
+      filename: req.file.filename || req.file.public_id || req.file.originalname,
+      path: req.file.path || req.file.secure_url,
+      size: req.file.size || req.file.bytes || 0
+    });
+
+    // Cloudinary stores the file and returns URL info
     const video = await Video.create({
-      title,
-      description,
-      filename: req.file.filename,
-      path: req.file.path,
-      size: req.file.size,
+      title: title || req.file.originalname,
+      description: description || '',
+      filename: req.file.filename || req.file.public_id || req.file.originalname,
+      path: req.file.path || req.file.secure_url, // This will be the Cloudinary URL
+      cloudinaryUrl: req.file.path || req.file.secure_url, // Store Cloudinary URL separately
+      cloudinaryPublicId: req.file.filename || req.file.public_id, // Store public ID for management
+      size: req.file.size || req.file.bytes || 0,
       mimetype: req.file.mimetype,
       owner: req.user._id,
       status: 'processing'
     });
 
-    // Trigger async analysis
+    // Trigger async analysis - now works with Cloudinary URLs
     analyzeVideo(video._id, req.io);
 
     res.status(201).json(video);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error during video upload:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Validation Error', details: error.errors });
+    }
+    res.status(500).json({ message: 'Failed to upload video.', error: error.message });
   }
 };
 
@@ -74,9 +94,16 @@ exports.streamVideo = async (req, res) => {
       return res.status(404).json({ message: 'Video not found' });
     }
 
+    // Use Cloudinary URL for streaming
+    if (video.cloudinaryUrl) {
+      // Redirect to Cloudinary URL - Cloudinary handles range requests automatically
+      return res.redirect(video.cloudinaryUrl);
+    }
+
+    // Fallback to local file streaming (for existing videos before migration)
     const videoPath = path.resolve(video.path);
     if (!fs.existsSync(videoPath)) {
-        return res.status(404).json({ message: 'File not found on server' });
+      return res.status(404).json({ message: 'File not found on server' });
     }
 
     const stat = fs.statSync(videoPath);

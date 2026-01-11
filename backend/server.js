@@ -24,7 +24,7 @@ const io = new Server(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Remove local uploads serving - now using Cloudinary
 
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -51,8 +51,15 @@ app.use('/api/videos', videoRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
+  console.error('Global Error Handler caught an error:');
+  console.error(err);
+  if (err.stack) {
+    console.error(err.stack);
+  }
+  res.status(err.status || 500).json({
+    message: err.message || 'Something went wrong!',
+    error: typeof err === 'string' ? err : err.message || 'Internal Server Error'
+  });
 });
 
 const PORT = process.env.PORT || 5000;
