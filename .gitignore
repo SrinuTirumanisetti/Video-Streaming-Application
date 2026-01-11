@@ -4,3 +4,4 @@ uploads/*
 !uploads/.gitkeep
 dist
 coverage
+*.mp4 
